@@ -1,0 +1,194 @@
+---
+title: "LVMwR Chapter 3"
+author: "Can Mekik"
+date: "2018-03-30"
+output: 
+  html_notebook:
+    toc: true
+    toc_depth: 5
+---
+
+# Setup
+
+Dependencies: foreign, psych, lavaan (v0.5-15; use devtools)
+
+```{r}
+performance.data <- foreign::read.spss("performance.data.sav")
+performance.data <- as.data.frame(performance.data)
+performance.data <- subset(performance.data,
+                           select=c("ags1", "ags2", "ags3", "ags4",
+                                    "ags5", "ags6", "ags7", "ags8",
+                                    "ags9", "ags10", "ags11", "ags12"))
+# make variables accessible without reference to performance.data
+attach(performance.data)
+```
+
+# Normality
+
+```{r}
+psych::mardia(performance.data)
+```
+
+Test stats and qqplot suggest data are not normal.
+
+# Models
+
+Try both standard ML and alternative approaches.
+
+## 4 Factor Models
+
+```{r}
+achievement.goal.cfa4.model <- "
+  map =~ ags1 + ags5 + ags7
+  mav =~ ags2 + ags6 + ags12
+  pap =~ ags3 + ags9 + ags11
+  pav =~ ags4 + ags8 + ags10
+  "
+```
+
+
+### Maximum Likelihood
+
+```{r}
+achievement.goal.cfa4.fit <- lavaan::cfa(achievement.goal.cfa4.model,
+                                         data=performance.data)
+lavaan::summary(achievement.goal.cfa4.fit, fit.measures=T, standardized=T)
+```
+
+Poor fit.
+
+#### $\chi^2$ Corrections
+
+Perhaps poor fit due to $\chi^2$ statistic used on non-normal data. Try corrections.
+
+##### Satorra-Bentler
+
+```{r}
+achievement.goal.cfa4.satorra.fit <- lavaan::cfa(achievement.goal.cfa4.model,
+                                                 data=performance.data,
+                                                 test="Satorra.Bentler")
+lavaan::summary(achievement.goal.cfa4.satorra.fit, 
+                fit.measures=T, standardized=T)
+```
+
+
+##### Yuan-Bentler
+
+```{r}
+achievement.goal.cfa4.yuan.fit <- lavaan::cfa(achievement.goal.cfa4.model,
+                                              data=performance.data,
+                                              test="Yuan.Bentler")
+lavaan::summary(achievement.goal.cfa4.yuan.fit, 
+                fit.measures=T, standardized=T)
+```
+
+##### Bollen-Stine
+
+```{r}
+achievement.goal.cfa4.bollen.fit <- lavaan::cfa(achievement.goal.cfa4.model,
+                                                data=performance.data,
+                                                test="Bollen.Stine")
+lavaan::summary(achievement.goal.cfa4.bollen.fit, 
+                fit.measures=T, standardized=T)
+```
+
+##### Results
+
+Still poor fit.
+
+### WLS
+
+```{r}
+achievement.goal.cfa4.wls.fit <- lavaan::cfa(achievement.goal.cfa4.model,
+                                             data=performance.data,
+                                             estimator="WLS")
+lavaan::summary(achievement.goal.cfa4.wls.fit, 
+                fit.measures=T, standardized=T)
+```
+
+Still poor fit.
+
+### DWLS
+
+```{r}
+achievement.goal.cfa4.dwls.fit <- lavaan::cfa(achievement.goal.cfa4.model,
+                                             data=performance.data,
+                                             estimator="WLSMV")
+lavaan::summary(achievement.goal.cfa4.dwls.fit, 
+                fit.measures=T, standardized=T)
+```
+
+Yay! Better/good fit.
+
+## 3 Factor Models
+
+So achieved good fit with 4 factors, will 3 factors do as well?
+
+Lump together `mav` and `map` as `mastery`.
+
+```{r}
+achievement.goal.cfa3.model<-'mastery=~ags1+ags2+ags5+ags6+ags7+ags12
+pap=~ags3+ags9+ags11
+pav=~ags4+ags8+ags10'
+```
+
+Since DWLS worked, use that.
+
+### DWLS
+
+```{r}
+achievement.goal.cfa3.dwls.fit<-lavaan::cfa(achievement.goal.cfa3.model, 
+                                            data=performance.data, 
+                                            estimator="WLSMV")
+
+lavaan::summary(achievement.goal.cfa3.dwls.fit, fit.measures=T, standardized=T)
+```
+
+## 2 Factor Models
+
+Now consider 2 Factors
+
+Lump together `pap` and `pav` as `performance`.
+
+```{r}
+achievement.goal.cfa2.model<-'
+mastery=~ags1+ags2+ags5+ags6+ags7+ags12
+performance=~ags3+ags4+ags8+ags9+ags10+ags11'
+```
+
+Since DWLS worked, use that.
+
+### DWLS
+
+```{r}
+achievement.goal.cfa2.dwls.fit<-lavaan::cfa(achievement.goal.cfa2.model,
+                                            data=performance.data,
+                                            estimator="WLSMV")
+
+lavaan::summary(achievement.goal.cfa2.dwls.fit, fit.measures=T, standardized=T)
+```
+
+# Comparisons
+
+Compare models using ANOVA.
+
+## 3 vs 2 factors
+
+```{r}
+lavaan::anova(achievement.goal.cfa3.dwls.fit, achievement.goal.cfa2.dwls.fit)
+```
+
+
+## 4 vs 2 factors
+
+```{r}
+lavaan::anova(achievement.goal.cfa4.dwls.fit, achievement.goal.cfa2.dwls.fit)
+```
+
+
+## 4 vs 3 factors
+
+```{r}
+lavaan::anova(achievement.goal.cfa4.dwls.fit, achievement.goal.cfa3.dwls.fit)
+```
+

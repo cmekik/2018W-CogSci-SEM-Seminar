@@ -1,0 +1,185 @@
+---
+title: "LVMwR Chapter 3"
+author: "Can Mekik"
+date: "2018-03-30"
+output: 
+  html_notebook:
+    toc: true
+    toc_depth: 5
+---
+
+# Setup
+
+Dependencies: foreign, psych, lavaan (v0.5-15; use devtools)
+
+```{r}
+performance.data <- foreign::read.spss("performance.data.sav")
+performance.data <- as.data.frame(performance.data)
+performance.data <- subset(performance.data,
+                           select=c("ags1", "ags2", "ags5", 
+                                    "ags6", "ags7", "ags12",
+                                    "ats50","ats29","ats40",
+                                    "ats35","mps1","mps6",
+                                    "mps12","mps14","mps15",
+                                    "mps17","mps20","mps23",
+                                    "mps28","mps32","mps34",
+                                    "mps40","mps42","mps2",
+                                    "mps3","mps4","mps7",
+                                    "mps10","mps16","mps19",
+                                    "mps22","mps24","mps26",
+                                    "mps27","mps29","mps38",
+                                    "mps43","mps45"))
+mao = c("ags1", "ags2", "ags5", "ags6", "ags7", "ags12")
+attc = c("ats50","ats29","ats40", "ats35")
+sop = c("mps1","mps6","mps12","mps14","mps15", "mps17","mps20","mps23", 
+        "mps28","mps32","mps34", "mps40","mps42")
+other = c("mps2", "mps3", "mps4", "mps7", "mps10", "mps16", "mps19", 
+          "mps22", "mps24", "mps26", "mps27", "mps29", "mps38", 
+          "mps43", "mps45")
+# make variables accessible without reference to performance.data
+attach(performance.data)
+```
+
+# CFAs
+
+## Mastery
+```{r}
+mao.model <- "mao=~ags1+ags2+ags5+ags6+ags7+ags12"
+mao.model.fit <- lavaan::cfa(mao.model, 
+                             data=performance.data[mao], 
+                             estimator="WLSMV")
+lavaan::summary(mao.model.fit, fit.measures=T, standardized=T)
+```
+
+## Self-Oriented Perfectionism
+```{r}
+sop.model <- "sop=~mps1+mps6+mps12+mps14+mps15+mps17+mps20+mps23+mps28+mps32+mps34+mps40+mps42"
+sop.model.fit <- lavaan::cfa(sop.model, 
+                            data=performance.data[sop], 
+                            estimator="WLSMV")
+lavaan::summary(sop.model.fit, fit.measures=T, standardized=T)
+```
+
+## Attention Control
+```{r}
+attc.model <- "attc=~ats50+ats29+ats40+ats35"
+attc.model.fit <- lavaan::cfa(attc.model, 
+                              data=performance.data[attc], 
+                              estimator="WLSMV")
+lavaan::summary(attc.model.fit, fit.measures=T, standardized=T)
+```
+
+## Other
+
+```{r}
+other.model <- "other=~mps2+mps3+mps4+mps7+mps10+mps16+mps19+mps22+mps24+mps26+mps27+mps29+mps38+mps43+mps45"
+other.model.fit <- lavaan::cfa(other.model, 
+                            data=performance.data[other], 
+                            estimator="WLSMV")
+lavaan::summary(other.model.fit, fit.measures=T, standardized=T)
+```
+
+# SEMs
+
+## Models
+```{r}
+attcmodel4.1 <- "
+  mao=~ags1+ags2+ags5+ags6+ags7+ags12
+  sop=~mps1+mps6+mps12+mps14+mps15+mps17+mps20+mps23+mps28+mps32+mps34+mps40+mps42
+  attc=~ats50+ats29+ats40+ats35
+
+  #Direct effect
+  attc~c*sop
+  
+  #Mediator effect
+  mao~a*sop
+  attc~b*mao
+
+  #Indirect effect
+  ab := a*b
+
+  #Total effect
+  total := c + a*b
+"
+
+attcmodel1.fit <- lavaan::sem(attcmodel4.1, 
+                              data=performance.data[c(mao,sop,attc)],
+                              estimator="WLSMV")
+lavaan::summary(attcmodel1.fit, fit.measures=T, standardized=T)
+```
+
+```{r}
+attcmodel4.2 <- "
+  mao=~ags1+ags2+ags5+ags6+ags7+ags12
+  sop=~mps1+mps6+mps12+mps14+mps15+mps17+mps20+mps23+mps28+mps32+mps34+mps40+mps42
+  attc=~ats50+ats29+ats40+ats35
+
+  #Direct effect
+  attc~mao+sop
+"
+
+attcmodel2.fit <- lavaan::sem(attcmodel4.2, 
+                              data=performance.data[c(mao,sop,attc)],
+                              estimator="WLSMV")
+lavaan::summary(attcmodel2.fit, fit.measures=T, standardized=T)
+```
+
+
+```{r}
+attcmodel4.3 <- "
+  mao=~ags1+ags2+ags5+ags6+ags7+ags12
+  sop=~mps1+mps6+mps12+mps14+mps15+mps17+mps20+mps23+mps28+mps32+mps34+mps40+mps42
+  attc=~ats50+ats29+ats40+ats35
+
+  #Direct effect
+  mao~a*sop
+  attc~b*mao
+  
+  #Indirect effect
+  ab := a*b
+"
+
+attcmodel3.fit <- lavaan::sem(attcmodel4.3, 
+                              data=performance.data[c(mao,sop,attc)],
+                              estimator="WLSMV")
+lavaan::summary(attcmodel3.fit, fit.measures=T, standardized=T)
+```
+### ANOVA
+
+```{r}
+lavaan::anova(attcmodel1.fit,attcmodel3.fit)
+```
+
+## Adding model with OTHER
+
+```{r}
+attcmodel4.4 <- "
+  mao=~ags1+ags2+ags5+ags6+ags7+ags12
+  sop=~mps1+mps6+mps12+mps14+mps15+mps17+mps20+mps23+mps28+mps32+mps34+mps40+mps42
+  attc=~ats50+ats29+ats40+ats35
+  other=~mps2+mps3+mps4+mps7+mps10+mps16+mps19+mps22+mps24+mps26+mps27+mps29+mps38+mps43+mps45
+
+  #Direct effect
+  attc~c*sop
+  attc~d*other
+
+  #Mediator effect
+  mao~a*sop
+  mao~e*other
+  attc~b*mao
+
+  #Indirect effect
+  ab := a*b
+  eb := e*b
+
+  #Total effect
+  total := c + (a*b)
+  total := d + (e*b)
+"
+
+attcmodel4.fit <- lavaan::sem(attcmodel4.4, 
+                              data=performance.data[c(mao,sop,attc,other)],
+                              estimator="WLSMV")
+lavaan::summary(attcmodel4.fit, fit.measures=T, standardized=T)
+```
+
